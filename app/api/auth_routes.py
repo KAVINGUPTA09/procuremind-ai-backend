@@ -16,15 +16,18 @@ Responsibilities:
 4. Authenticate existing users.
 5. Generate JWT access tokens after successful login.
 6. Return the currently logged-in user's profile using JWT verification.
+7. Authenticate users with Google Sign-In.
 
 Important:
 ----------
-/auth/signup and /auth/login are public endpoints.
+/auth/signup, /auth/login and /auth/google are public endpoints.
 
 /auth/me is protected and requires a valid JWT token.
 ===========================================================================
 """
 
+import os
+import uuid
 from typing import Annotated
 
 from fastapi import (
@@ -34,7 +37,11 @@ from fastapi import (
     status
 )
 
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 from app.database.database import get_db
 from app.database.models import User
@@ -65,13 +72,9 @@ from app.dependencies.auth_dependencies import (
 )
 
 
-# -------------------------------------------------------------------------
-# Create Authentication Router
-#
-# Important:
-# We DO NOT protect the complete router because
-# signup and login must remain public.
-# -------------------------------------------------------------------------
+# =========================================================
+# AUTHENTICATION ROUTER
+# =========================================================
 
 router = APIRouter(
     prefix="/auth",
@@ -79,12 +82,9 @@ router = APIRouter(
 )
 
 
-# -------------------------------------------------------------------------
-# Database Dependency Type
-#
-# Creates a database session for each request
-# and automatically closes it after the request finishes.
-# -------------------------------------------------------------------------
+# =========================================================
+# DATABASE SESSION
+# =========================================================
 
 DatabaseSession = Annotated[
     Session,
@@ -92,19 +92,18 @@ DatabaseSession = Annotated[
 ]
 
 
-# -------------------------------------------------------------------------
-# Signup API
-#
+# =========================================================
+# GOOGLE LOGIN REQUEST MODEL
+# =========================================================
+
+class GoogleLoginRequest(BaseModel):
+    credential: str
+
+
+# =========================================================
+# SIGNUP
 # POST /auth/signup
-#
-# Flow:
-# Request
-# → Pydantic validation
-# → Check email
-# → Hash password
-# → Save user in PostgreSQL
-# → Return created user
-# -------------------------------------------------------------------------
+# =========================================================
 
 @router.post(
     "/signup",
@@ -145,19 +144,10 @@ def signup_user(
     return new_user
 
 
-# -------------------------------------------------------------------------
-# Login API
-#
+# =========================================================
+# LOGIN
 # POST /auth/login
-#
-# Flow:
-# Email + Password
-# → Find user
-# → Verify account
-# → Verify password
-# → Generate JWT
-# → Return token
-# -------------------------------------------------------------------------
+# =========================================================
 
 @router.post(
     "/login",
@@ -168,7 +158,7 @@ def login_user(
     db: DatabaseSession
 ):
     """
-    Authenticates a user and returns a JWT access token.
+    Authenticates a user using email and password.
     """
 
     user = get_user_by_email(
@@ -213,22 +203,145 @@ def login_user(
     )
 
 
-# -------------------------------------------------------------------------
-# Current Logged-In User API
-#
+# =========================================================
+# GOOGLE LOGIN
+# POST /auth/google
+# =========================================================
+
+@router.post(
+    "/google",
+    response_model=TokenResponse
+)
+def google_login(
+    data: GoogleLoginRequest,
+    db: DatabaseSession
+):
+    """
+    Authenticates a user using Google Sign-In.
+
+    Flow:
+    Google credential
+        ↓
+    Verify credential with Google
+        ↓
+    Get verified email
+        ↓
+    Existing user? -> use existing account
+        ↓
+    New user? -> create buyer account
+        ↓
+    Generate ProcureMind JWT
+    """
+
+    google_client_id = os.getenv(
+        "GOOGLE_CLIENT_ID"
+    )
+
+    if not google_client_id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google authentication is not configured."
+        )
+
+    try:
+        google_user = id_token.verify_oauth2_token(
+            data.credential,
+            google_requests.Request(),
+            google_client_id
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google credential."
+        )
+
+    email = google_user.get(
+        "email"
+    )
+
+    name = google_user.get(
+        "name",
+        "Google User"
+    )
+
+    email_verified = google_user.get(
+        "email_verified",
+        False
+    )
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google account email was not provided."
+        )
+
+    if not email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google email could not be verified."
+        )
+
+    user = get_user_by_email(
+        db,
+        email
+    )
+
+    # -----------------------------------------------------
+    # First Google login
+    # Create account automatically
+    # -----------------------------------------------------
+
+    if user is None:
+
+        random_password = str(
+            uuid.uuid4()
+        )
+
+        secure_password = hash_password(
+            random_password
+        )
+
+        user = create_user(
+            db=db,
+            name=name,
+            email=email,
+            hashed_password=secure_password,
+            role="buyer"
+        )
+
+    # -----------------------------------------------------
+    # Account status check
+    # -----------------------------------------------------
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive."
+        )
+
+    # -----------------------------------------------------
+    # Generate ProcureMind JWT
+    # -----------------------------------------------------
+
+    access_token = create_access_token(
+        {
+            "sub": user.email,
+            "user_id": user.id,
+            "role": user.role
+        }
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer"
+    )
+
+
+# =========================================================
+# CURRENT USER PROFILE
 # GET /auth/me
-#
-# Purpose:
-# Returns details of the currently logged-in user
-# using the JWT access token.
-#
-# Flow:
-# JWT Token
-# → get_current_user()
-# → Verify token
-# → Find user in PostgreSQL
-# → Return user profile
-# -------------------------------------------------------------------------
+# =========================================================
 
 @router.get(
     "/me",
