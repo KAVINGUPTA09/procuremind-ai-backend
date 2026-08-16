@@ -1,6 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# =========================================================
+# DATABASE
+# =========================================================
+
+from app.database.database import Base, engine
+from app.database import models
+
+
+# =========================================================
+# ROUTERS
+# =========================================================
+
 from app.api.routes import (
     router as procurement_router
 )
@@ -33,21 +45,23 @@ app = FastAPI(
 
 
 # =========================================================
+# CREATE DATABASE TABLES
+# =========================================================
+# Creates tables if they do not already exist.
+# Existing tables are not deleted.
+
+Base.metadata.create_all(bind=engine)
+
+
+# =========================================================
 # CORS
-#
-# Allows React/Vite frontend to call FastAPI backend.
-#
-# Current frontend:
-# http://localhost:8082
-#
-# Older Vite ports are also allowed so the app does not
-# break if Vite automatically switches ports again.
 # =========================================================
 
 app.add_middleware(
     CORSMiddleware,
 
     allow_origins=[
+        # Local frontend
         "http://localhost:8080",
         "http://127.0.0.1:8080",
 
@@ -60,6 +74,7 @@ app.add_middleware(
         "http://localhost:8083",
         "http://127.0.0.1:8083",
 
+        # Render frontend
         "https://procurewise-insight.onrender.com",
     ],
 
@@ -68,25 +83,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # =========================================================
 # ROUTERS
 # =========================================================
 
-app.include_router(
-    procurement_router
-)
+app.include_router(procurement_router)
 
-app.include_router(
-    auth_router
-)
+app.include_router(auth_router)
 
-app.include_router(
-    history_router
-)
+app.include_router(history_router)
 
-app.include_router(
-    report_router
-)
+app.include_router(report_router)
 
 
 # =========================================================
@@ -117,20 +125,27 @@ def health_check():
 # =========================================================
 # ARCHITECTURE
 #
-# React / Vite
-# localhost:8082
+# React / TanStack Frontend
+#        |
+#        | REST API
+#        v
+# FastAPI Backend
+#        |
+#        +---- Authentication
+#        +---- Procurement APIs
+#        +---- LangGraph
+#        +---- PostgreSQL
+#        +---- History
+#        +---- PDF Reports
 #
-#        ↓ REST API
+# Cloud:
 #
-# FastAPI
-# 127.0.0.1:8001
+# Frontend:
+# https://procurewise-insight.onrender.com
 #
-#        ↓
+# Backend:
+# https://procuremind-ai-backend.onrender.com
 #
-# Authentication
-# Procurement APIs
-# LangGraph
-# PostgreSQL
-# History
-# PDF Reports
+# Database:
+# Render PostgreSQL
 # =========================================================
