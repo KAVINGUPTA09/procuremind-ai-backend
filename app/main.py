@@ -57,18 +57,16 @@ app.add_middleware(
         "http://localhost:8082",
         "http://127.0.0.1:8082",
 
-
         "http://localhost:8083",
         "http://127.0.0.1:8083",
+
+        "https://procurewise-insight.onrender.com",
     ],
 
     allow_credentials=True,
-
     allow_methods=["*"],
-
     allow_headers=["*"],
 )
-
 
 # =========================================================
 # ROUTERS
