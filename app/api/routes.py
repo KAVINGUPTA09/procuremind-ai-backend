@@ -20,6 +20,7 @@ Responsibilities:
 7. Run LangGraph orchestration for multi-vendor analysis.
 8. Save procurement analysis in PostgreSQL through LangGraph database node.
 9. Return structured API responses.
+10. Invalidate Redis history cache after a new analysis is saved.
 ===========================================================================
 """
 
@@ -83,6 +84,15 @@ from app.services.compilance_services import (
 
 from app.services.scoring import (
     calculate_vendor_scores
+)
+
+
+# =========================================================================
+# Redis Service
+# =========================================================================
+
+from app.services.redis_service import (
+    redis_client
 )
 
 
@@ -658,6 +668,29 @@ async def compare_multiple_pdf_quotations(
 
     # =====================================================================
     # STEP 8
+    # INVALIDATE REDIS HISTORY CACHE
+    #
+    # LangGraph has already saved the new analysis to PostgreSQL.
+    # The old cached history is now stale, so delete it.
+    # =====================================================================
+
+    try:
+
+        redis_client.delete(
+            f"history:user:{current_user.id}"
+        )
+
+    except Exception as redis_error:
+
+        # Redis failure should NOT break procurement analysis.
+        print(
+            "Redis cache invalidation error:",
+            redis_error
+        )
+
+
+    # =====================================================================
+    # STEP 9
     # Successful LangGraph Response
     # =====================================================================
 
@@ -838,6 +871,8 @@ async def compare_multiple_pdf_quotations(
 #   ├── vendors
 #   ├── vendor_quotation_records
 #   └── comparison_result_records
+#   ↓
+# Redis Cache
 #   ↓
 # History APIs
 #   ↓
