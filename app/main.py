@@ -8,26 +8,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database.database import Base, engine
 from app.database import models
 
+# =========================================================
+# REDIS
+# =========================================================
+
+from app.services.redis_service import check_redis_connection
 
 # =========================================================
 # ROUTERS
 # =========================================================
 
-from app.api.routes import (
-    router as procurement_router
-)
-
-from app.api.auth_routes import (
-    router as auth_router
-)
-
-from app.api.history_routes import (
-    router as history_router
-)
-
-from app.api.report_routes import (
-    router as report_router
-)
+from app.api.routes import router as procurement_router
+from app.api.auth_routes import router as auth_router
+from app.api.history_routes import router as history_router
+from app.api.report_routes import router as report_router
 
 
 # =========================================================
@@ -47,8 +41,6 @@ app = FastAPI(
 # =========================================================
 # CREATE DATABASE TABLES
 # =========================================================
-# Creates tables if they do not already exist.
-# Existing tables are not deleted.
 
 Base.metadata.create_all(bind=engine)
 
@@ -61,7 +53,6 @@ app.add_middleware(
     CORSMiddleware,
 
     allow_origins=[
-        # Local frontend
         "http://localhost:8080",
         "http://127.0.0.1:8080",
 
@@ -74,7 +65,6 @@ app.add_middleware(
         "http://localhost:8083",
         "http://127.0.0.1:8083",
 
-        # Render frontend
         "https://procurewise-insight.onrender.com",
     ],
 
@@ -89,11 +79,8 @@ app.add_middleware(
 # =========================================================
 
 app.include_router(procurement_router)
-
 app.include_router(auth_router)
-
 app.include_router(history_router)
-
 app.include_router(report_router)
 
 
@@ -103,7 +90,6 @@ app.include_router(report_router)
 
 @app.get("/")
 def home():
-
     return {
         "message": "Welcome to ProcureMind AI",
         "documents": "/docs"
@@ -116,36 +102,17 @@ def home():
 
 @app.get("/health")
 def health_check():
-
     return {
         "status": "healthy"
     }
 
 
 # =========================================================
-# ARCHITECTURE
-#
-# React / TanStack Frontend
-#        |
-#        | REST API
-#        v
-# FastAPI Backend
-#        |
-#        +---- Authentication
-#        +---- Procurement APIs
-#        +---- LangGraph
-#        +---- PostgreSQL
-#        +---- History
-#        +---- PDF Reports
-#
-# Cloud:
-#
-# Frontend:
-# https://procurewise-insight.onrender.com
-#
-# Backend:
-# https://procuremind-ai-backend.onrender.com
-#
-# Database:
-# Render PostgreSQL
+# REDIS HEALTH
 # =========================================================
+
+@app.get("/health/redis")
+def redis_health():
+    return {
+        "redis_connected": check_redis_connection()
+    }
