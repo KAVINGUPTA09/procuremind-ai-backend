@@ -22,6 +22,7 @@ from app.api.routes import router as procurement_router
 from app.api.auth_routes import router as auth_router
 from app.api.history_routes import router as history_router
 from app.api.report_routes import router as report_router
+from app.api.b2b_routes import router as b2b_router
 
 
 # =========================================================
@@ -82,6 +83,7 @@ app.include_router(procurement_router)
 app.include_router(auth_router)
 app.include_router(history_router)
 app.include_router(report_router)
+app.include_router(b2b_router)
 
 
 # =========================================================

@@ -1,4 +1,4 @@
-import os
+﻿import os
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 
@@ -12,7 +12,7 @@ if not GROQ_API_KEY:
 llm=ChatGroq(
     api_key=GROQ_API_KEY,
     temperature=0.2,
-    model="llama-3.3-70b-versatile"
+    model="openai/gpt-oss-120b"
 )
 
 basic_prompt=ChatPromptTemplate.from_messages(
@@ -82,12 +82,12 @@ if __name__ == "__main__":
 
 
 
-#ChatGroq → LLM
-#PromptTemplate → Prompt banata hai
-#Chain → Prompt aur LLM ko connect karti hai
-#invoke() → Chain execute karta hai
-#AIMessage → Response object
-#response.content → Final answer
+#ChatGroq â†’ LLM
+#PromptTemplate â†’ Prompt banata hai
+#Chain â†’ Prompt aur LLM ko connect karti hai
+#invoke() â†’ Chain execute karta hai
+#AIMessage â†’ Response object
+#response.content â†’ Final answer
 
 
 #llm model prepare-prompt basic tempelate created-then chain banaya model aur prompt ka use connect kiya then invoke se chain run ki ai ans ila uska object use krke content nikalla

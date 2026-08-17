@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 
 from dotenv import load_dotenv
@@ -38,7 +38,7 @@ def ask_groq(
     """
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
 
         messages=[
             {
@@ -119,7 +119,7 @@ RFQ TEXT:
 """
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
 
         messages=[
             {
@@ -216,7 +216,7 @@ VENDOR QUOTATION TEXT:
 """
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
 
         messages=[
             {
@@ -351,3 +351,4 @@ if __name__ == "__main__":
 # 9. Pydantic validates the dictionary and creates typed objects.
 
 # 10. The main block tests both RFQ and vendor extraction.
+

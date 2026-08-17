@@ -205,7 +205,7 @@ workflow.add_edge(
 
 workflow.add_edge(
     "manual_review",
-    END
+    "database"
 )
 
 

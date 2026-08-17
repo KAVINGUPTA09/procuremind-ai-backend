@@ -295,3 +295,49 @@ class ComparisonResultRecord(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
+# =========================================================================
+# Human Approval Record (B2B workflow)
+# =========================================================================
+
+class ApprovalRecord(Base):
+    __tablename__ = "approval_records"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    rfq_id: Mapped[int] = mapped_column(
+        ForeignKey("rfq_records.id"), nullable=False, unique=True, index=True
+    )
+    requested_by_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
+    approver_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
+    status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False, index=True)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# =========================================================================
+# Contract Record (lightweight contract analytics)
+# =========================================================================
+
+class ContractRecord(Base):
+    __tablename__ = "contract_records"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    vendor_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    value: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    currency: Mapped[str] = mapped_column(String(20), default="INR", nullable=False)
+    start_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(50), default="active", nullable=False, index=True)
+    terms: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )

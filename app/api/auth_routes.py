@@ -138,7 +138,7 @@ def signup_user(
         name=data.name,
         email=data.email,
         hashed_password=secure_password,
-        role=data.role
+        role="buyer"
     )
 
     return new_user

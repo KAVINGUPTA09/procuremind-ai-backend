@@ -107,23 +107,14 @@ def download_procurement_report(
     # Find RFQ belonging to logged-in user
     # =====================================================================
 
-    rfq_statement = (
+    role = (current_user.role or "buyer").lower()
 
-        select(
-            RFQRecord
-        )
+    rfq_statement = select(RFQRecord).where(RFQRecord.id == analysis_id)
 
-        .where(
-
-            RFQRecord.id
-            ==
-            analysis_id,
-
-            RFQRecord.user_id
-            ==
-            current_user.id
-        )
-    )
+    # Buyers can only download their own reports. Approvers/admins can review
+    # organisation-wide analyses as part of the B2B approval workflow.
+    if role == "buyer":
+        rfq_statement = rfq_statement.where(RFQRecord.user_id == current_user.id)
 
 
     rfq_result = db.execute(

@@ -657,6 +657,10 @@ async def compare_multiple_pdf_quotations(
 
             "requires_manual_review": True,
 
+            "analysis_id": result.get("analysis_id"),
+
+            "comparison_id": result.get("comparison_id"),
+
             "review_reason": (
                 result.get(
                     "review_reason",

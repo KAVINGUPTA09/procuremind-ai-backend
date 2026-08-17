@@ -20,7 +20,8 @@ from app.database.models import (
     User,
     RFQRecord,
     VendorQuotationRecord,
-    ComparisonResultRecord
+    ComparisonResultRecord,
+    ApprovalRecord
 )
 
 from app.dependencies.auth_dependencies import (
@@ -126,16 +127,16 @@ def get_history(
     # 2. CACHE MISS → POSTGRESQL
     # -----------------------------------------------------
 
-    statement = (
-        select(RFQRecord)
-        .where(
-            RFQRecord.user_id
-            == current_user.id
-        )
-        .order_by(
-            RFQRecord.id.desc()
-        )
-    )
+    role = (current_user.role or "buyer").lower()
+
+    statement = select(RFQRecord)
+
+    # Buyers only see their own analyses. Approvers/admins need organisation-wide
+    # visibility so the human-review dashboard can open the referenced analysis.
+    if role == "buyer":
+        statement = statement.where(RFQRecord.user_id == current_user.id)
+
+    statement = statement.order_by(RFQRecord.id.desc())
 
 
     result = db.execute(
@@ -175,6 +176,13 @@ def get_history(
         )
 
 
+        approval_statement = (
+            select(ApprovalRecord)
+            .where(ApprovalRecord.rfq_id == rfq.id)
+        )
+        approval = db.execute(approval_statement).scalar_one_or_none()
+
+
         history.append(
             {
 
@@ -203,6 +211,12 @@ def get_history(
                     comparison.final_decision
                     if comparison
                     else None
+                ),
+
+                "human_approval_status": (
+                    approval.status
+                    if approval
+                    else "pending"
                 )
             }
         )
@@ -295,16 +309,12 @@ def get_history_detail(
     # POSTGRESQL
     # -----------------------------------------------------
 
-    rfq_statement = (
-        select(RFQRecord)
-        .where(
-            RFQRecord.id
-            == analysis_id,
+    role = (current_user.role or "buyer").lower()
 
-            RFQRecord.user_id
-            == current_user.id
-        )
-    )
+    rfq_statement = select(RFQRecord).where(RFQRecord.id == analysis_id)
+
+    if role == "buyer":
+        rfq_statement = rfq_statement.where(RFQRecord.user_id == current_user.id)
 
 
     rfq_result = db.execute(
@@ -377,6 +387,11 @@ def get_history_detail(
     )
 
 
+    approval = db.execute(
+        select(ApprovalRecord).where(ApprovalRecord.rfq_id == rfq.id)
+    ).scalar_one_or_none()
+
+
     response_data = {
 
         "analysis_id":
@@ -437,6 +452,18 @@ def get_history_detail(
 
             for vendor in vendors
         ],
+
+
+        "human_approval": (
+            {
+                "status": approval.status,
+                "comment": approval.comment,
+                "approver_user_id": approval.approver_user_id,
+                "decided_at": approval.decided_at
+            }
+            if approval
+            else {"status": "pending"}
+        ),
 
 
         "comparison": (
@@ -549,6 +576,12 @@ def delete_history(
 
 
     try:
+
+        db.execute(
+            delete(ApprovalRecord)
+            .where(ApprovalRecord.rfq_id == analysis_id)
+        )
+
 
         db.execute(
 

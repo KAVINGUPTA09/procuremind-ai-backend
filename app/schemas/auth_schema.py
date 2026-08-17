@@ -18,6 +18,7 @@ class SignupRequest(BaseModel):
         min_length=8
     )
 
+    # Public self-signup is intentionally buyer-only. Admins can promote users later.
     role: str = "buyer"
 
 
