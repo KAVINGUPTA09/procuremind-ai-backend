@@ -535,6 +535,8 @@ LinkedIn: **kavin-gupta-509b8a321**
 
 ProcureMind AI is a **decision-support platform**.
 
+BACKEND-LINK-https://procuremind-ai-backend.onrender.com/
+
 AI-generated recommendations are intended to assist authorised procurement professionals and should not replace organisational procurement policies, due diligence or human judgement.
 
 ---
